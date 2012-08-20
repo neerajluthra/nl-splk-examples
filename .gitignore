@@ -3,3 +3,6 @@
 
 # custom automated build 
 .externalToolBuilders
+
+# build folder
+build
