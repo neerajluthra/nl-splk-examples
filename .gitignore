@@ -1,0 +1,5 @@
+# OS X
+.DS_Store
+
+# custom automated build 
+.externalToolBuilders
