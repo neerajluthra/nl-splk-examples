@@ -1,0 +1,49 @@
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>How to start a Splunk session</title>
+    <script type="text/javascript" src="resources/jquery.min.js"></script>
+    <script type="text/javascript" src="resources/client/splunk.js"></script>
+
+    <script type="text/javascript" charset="utf-8">
+    function displayApps() {
+        var http = new splunkjs.ProxyHttp("/NLDemo1/proxy");
+        // Create a Service instance and log in 
+        var service = new splunkjs.Service(http, {
+            username: "admin",
+            password: "changeme",
+            scheme: "https",
+            host: "localhost",
+            port: "8089"
+        });
+
+        // Print installed apps to the console to verify login
+         service.apps().fetch(function(err, apps) {
+            if (err) {
+                alert("Error listing apps");
+                return;
+            }
+
+         console.log("success connection");
+
+         service.serverInfo(function(err, info) {
+         console.log("Splunk Version: ", info.properties().version);
+     });
+            var myapps = "";
+            var appsList = apps.list();
+
+            for(var i = 0; i < appsList.length; i++) {
+                myapps += "App " + i + ": " + appsList[i].name + "<br/>"
+            }
+
+            document.getElementById("applist").innerHTML=myapps;
+        });
+
+    }
+    </script> 
+</head>
+<body>
+    <button type="button" onclick="displayApps()">Log in and list apps</button>
+    <p id="applist"></p>
+</body>
+</html>

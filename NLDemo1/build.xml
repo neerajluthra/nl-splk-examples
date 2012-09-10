@@ -1,0 +1,67 @@
+<project name="NLDemo1" basedir="." default="compile">
+
+  <!-- set global properties for this build -->
+  <property name="src.dir"     value="src"/>
+  <property name="webapp.dir"  value="webapp"/>
+  <property name="build.dir"   value="build"/>
+  <property name="splunklib.dir"     value="../../splunk-sdk-java/lib"/>
+  <property name="splunkdist.dir"     value="../../splunk-sdk-java/dist"/>
+	
+  <!-- adds every jar in the lib directory to the classpath-->
+  <path id="classpath">
+    <fileset dir="${splunklib.dir}" includes="**/*.jar"/>
+    <fileset dir="${splunkdist.dir}" includes="**/*.jar"/>
+  </path>
+
+  <target name="clean">
+    <delete dir="${build.dir}"/>
+  </target>
+
+  <target name="compile">
+    <mkdir dir="${build.dir}/WEB-INF/classes"/>
+  	<copy todir="${build.dir}">
+  	    <fileset dir="${webapp.dir}" excludes="WEB-INF"/>
+  	</copy>
+
+  	<!--javac destdir="${build.dir}/WEB-INF/classes" classpathref="classpath" includeantruntime="false">
+    	<src path="${src.dir}/java"/>
+    	<src path="${src.dir}/test"/>
+	</javac>
+
+  	<copy todir="${build.dir}/jsp">
+    	<fileset dir="${webapp.dir}/jsp"/>
+    </copy>
+  	
+  	<copy file="${webapp.dir}/WEB-INF/web.xml" todir="${build.dir}/WEB-INF"/>
+    
+  	<copy todir="${build.dir}/resources">
+    	<fileset dir="${webapp.dir}/resources"/>
+    </copy-->
+  	
+  </target>
+
+  <target name="build" depends="clean, compile">
+  </target>
+
+  <target name="jar" depends="compile">
+    <mkdir dir="${jar.dir}"/>
+    <jar destfile="${jar.dir}/${ant.project.name}.jar" basedir="${classes.dir}">
+      <manifest>
+        <attribute name="Main-Class" value="${main-class}"/>
+      </manifest> 
+    </jar>
+  </target>
+
+  <target name="run" depends="jar">
+    <java fork="true" classname="${main-class}">
+      <classpath>
+        <path refid="classpath"/>
+        <path location="${jar.dir}/${ant.project.name}.jar"/>
+      </classpath>
+    </java>
+  </target>
+
+  <target name="clean-build" depends="clean,jar"/>
+
+  <target name="main" depends="clean,run"/>
+</project>
