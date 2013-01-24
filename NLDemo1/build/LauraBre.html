@@ -7,7 +7,7 @@
 
     <script type="text/javascript" charset="utf-8">
     function displayApps() {
-        var http = new splunkjs.ProxyHttp("/NLDemo1/proxy");
+        var http = new splunkjs.ProxyHttp("/proxy/");
         // Create a Service instance and log in 
         var service = new splunkjs.Service(http, {
             username: "admin",
