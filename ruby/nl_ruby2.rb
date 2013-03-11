@@ -1,18 +1,13 @@
 #require "/Users/nluthra/git/splunk-sdk-ruby/lib/splunk-sdk-ruby"
 require 'splunk-sdk-ruby'
+service = Splunk::connect(:scheme=>"https", :host=>"localhost", :port=>8089, :username=>"admin", :password=>"changeme")
 
-# How to get to the Splunk server. Edit this to match your
-# own Splunk install.
-config = {
-    :scheme => :https,
-    :host => "localhost",
-    :port => 8089,
-    :username => "admin",
-    :password => "changeme"
-}
-
-# Create a Service logged into Splunk, and print the authentication token
-# that Splunk sent us.
-service0 = Splunk::connect(config)
-puts "Logged in service 0. Token: #{service0.token}"
+main = service.indexes["main"]
+socket = main.attach()
+begin
+  socket.write("The first event.\r\n")
+  socket.write("The second event.\r\n")
+ensure
+  socket.close()
+end
 

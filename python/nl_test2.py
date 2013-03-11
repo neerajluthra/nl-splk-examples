@@ -5,16 +5,12 @@ PORT = 8089
 USERNAME = "admin"
 PASSWORD = "changeme"
 OWNER = "admin"
-APP = "search"
+APP = "oidemo"
 
 # Create a Service instance and log in 
-service = client.connect(
-    host=HOST,
-    port=PORT,
-    username=USERNAME,
-    password=PASSWORD,
-    owner=OWNER,
-    app=APP)
+service=client.connect(host="localhost",port=8089,username="admin",password="changeme",autologin=True,app="-",owner="-")
+
+print len(service.saved_searches)
 
 for savedsearch in service.saved_searches:
     print "  " + savedsearch.name
