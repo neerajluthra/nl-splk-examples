@@ -12,6 +12,11 @@ import junit.framework.TestCase;
 import com.splunk.Args;
 import com.splunk.Event;
 import com.splunk.Job;
+import com.splunk.JobArgs;
+import com.splunk.JobResultsPreviewArgs;
+import com.splunk.JobArgs.ExecutionMode;
+import com.splunk.JobArgs.SearchMode;
+import com.splunk.JobResultsPreviewArgs.OutputMode;
 import com.splunk.ResponseMessage;
 import com.splunk.ResultsReaderXml;
 import com.splunk.SavedSearch;
@@ -20,12 +25,50 @@ import com.sun.org.apache.xerces.internal.impl.dv.util.Base64;
 
 public class MyServerSideClassTest extends TestCase {
 
-	public void testSearchWithArguments() throws IOException, InterruptedException {
+	public void testRealtime() throws IOException, InterruptedException {
 		Service service = new Service("localhost", 8089);
 		service.login("admin", "changeme");
-		
+
 		Job job = null;
-		// search query for NL1 is "index=_internal sourcetype=$args.mysourcetype$"
+		JobArgs jobArgs = new JobArgs();
+		jobArgs.setExecutionMode(ExecutionMode.NORMAL);
+		jobArgs.setEarliestTime("rt-1m");
+		jobArgs.setLatestTime("rt");
+		jobArgs.setSearchMode(SearchMode.REALTIME);
+		jobArgs.setStatusBuckets(300);
+
+		job = service.search("search index=_internal", jobArgs);
+
+		while (!job.isReady()) {
+			Thread.sleep(500);
+		}
+		System.out.println("Is realtime search? " + job.isRealTimeSearch());
+
+		JobResultsPreviewArgs resultsArgs = new JobResultsPreviewArgs();
+		resultsArgs.setCount(2000);
+
+		while (true) {
+			InputStream stream = job.getResultsPreview(resultsArgs);
+			String line = null;
+			BufferedReader br = new BufferedReader(new InputStreamReader(
+					stream, "UTF-8"));
+			while ((line = br.readLine()) != null) {
+				System.out.println(line);
+			}
+			br.close();
+			stream.close();
+			Thread.sleep(500);
+		}
+	}
+
+	public void testSearchWithArguments() throws IOException,
+			InterruptedException {
+		Service service = new Service("localhost", 8089);
+		service.login("admin", "changeme");
+
+		Job job = null;
+		// search query for NL1 is
+		// "index=_internal sourcetype=$args.mysourcetype$"
 		SavedSearch savedSearch = service.getSavedSearches().get("NL1");
 		Args dispatchArgs = new Args();
 		dispatchArgs.add("dispatch.earliest_time", "-20m@m");
@@ -33,14 +76,14 @@ public class MyServerSideClassTest extends TestCase {
 		dispatchArgs.add("span", "5min");
 		dispatchArgs.add("args.mysourcetype", "splunkd");
 		job = savedSearch.dispatch(dispatchArgs);
-		
+
 		while (!job.isDone()) {
 			Thread.sleep(500);
 		}
 		Map<String, Object> outputArgs = new HashMap<String, Object>();
 		outputArgs.put("count", 0);// To get more than 100 results
 		outputArgs.put("output_mode", "json");
-		
+
 		InputStream stream = job.getResults(outputArgs);
 		System.out.println(job.getResultCount());
 	}
