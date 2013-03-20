@@ -1,5 +1,5 @@
-#require "/Users/nluthra/git/splunk-sdk-ruby/lib/splunk-sdk-ruby.rb"
-require "splunk-sdk-ruby"
+require "/Users/nluthra/git/splunk-sdk-ruby/lib/splunk-sdk-ruby.rb"
+#require "splunk-sdk-ruby"
 
 def getService
 	config = { :username => "admin", :password => "changeme", :server => "localhost", :port => "8089" }
@@ -30,7 +30,7 @@ puts
 
 puts "Listing Oneshot Job results ..."
 stream = service.jobs.create_oneshot("search index=_internal | head 2")
-reader = Splunk::ResultsReader.new(stream)
+reader = ResultsReader.new(stream)
 reader.each do |result|
   puts result
 end
