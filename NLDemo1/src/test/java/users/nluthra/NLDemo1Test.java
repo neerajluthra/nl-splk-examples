@@ -13,17 +13,16 @@ import com.splunk.Args;
 import com.splunk.Event;
 import com.splunk.Job;
 import com.splunk.JobArgs;
-import com.splunk.JobResultsPreviewArgs;
 import com.splunk.JobArgs.ExecutionMode;
 import com.splunk.JobArgs.SearchMode;
-import com.splunk.JobResultsPreviewArgs.OutputMode;
+import com.splunk.JobResultsPreviewArgs;
 import com.splunk.ResponseMessage;
 import com.splunk.ResultsReaderXml;
 import com.splunk.SavedSearch;
 import com.splunk.Service;
 import com.sun.org.apache.xerces.internal.impl.dv.util.Base64;
 
-public class MyServerSideClassTest extends TestCase {
+public class NLDemo1Test extends TestCase {
 
 	public void testRealtime() throws IOException, InterruptedException {
 		Service service = new Service("localhost", 8089);
