@@ -11,6 +11,7 @@ import junit.framework.TestCase;
 
 import com.splunk.Args;
 import com.splunk.Event;
+import com.splunk.Index;
 import com.splunk.Job;
 import com.splunk.JobArgs;
 import com.splunk.JobArgs.ExecutionMode;
@@ -23,6 +24,32 @@ import com.splunk.Service;
 import com.sun.org.apache.xerces.internal.impl.dv.util.Base64;
 
 public class NLDemo1Test extends TestCase {
+
+	public void testNL() throws Exception {
+		// instantiate Service and connect
+		Args args = new Args();
+		args.add("username", "admin");
+		args.add("password", "changeme");
+		args.add("host", "localhost");
+		args.add("port", 8089);
+		Service service = Service.connect(args);
+		Index index = service.getIndexes().get("main");
+		Args eventArgs = new Args();
+		eventArgs.put("source", "foohost");
+		index.submit(eventArgs, "foo=bar");
+	}
+
+	public void testSavedSearchPermissions() throws IOException,
+			InterruptedException {
+		Service service = new Service("localhost", 8089);
+		service.login("admin", "changeme");
+
+		SavedSearch ss = service.getSavedSearches().get("NLSS1");
+		ss.setActionSummaryIndexName("foo");
+		Args args = new Args();
+		args.add("action.summary_index", "1");
+		ss.update(args);
+	}
 
 	public void testRealtime() throws IOException, InterruptedException {
 		Service service = new Service("localhost", 8089);
@@ -37,7 +64,7 @@ public class NLDemo1Test extends TestCase {
 		jobArgs.setStatusBuckets(300);
 
 		job = service.search("search index=_internal", jobArgs);
-
+		
 		while (!job.isReady()) {
 			Thread.sleep(500);
 		}
@@ -70,8 +97,8 @@ public class NLDemo1Test extends TestCase {
 		// "index=_internal sourcetype=$args.mysourcetype$"
 		SavedSearch savedSearch = service.getSavedSearches().get("NL1");
 		Args dispatchArgs = new Args();
-		dispatchArgs.add("dispatch.earliest_time", "-20m@m");
-		dispatchArgs.add("latest", "now");
+		dispatchArgs.add("dispatch.earliest_time", "-120m@m");
+		dispatchArgs.add("latest", "-10m@m");
 		dispatchArgs.add("span", "5min");
 		dispatchArgs.add("args.mysourcetype", "splunkd");
 		job = savedSearch.dispatch(dispatchArgs);
@@ -109,8 +136,8 @@ public class NLDemo1Test extends TestCase {
 		Service service = new Service("localhost", 8089);
 		service.login("admin", "changeme");
 		Args args = new Args();
-		args.add("add", "decommissioned");
-		args.add("value", "njrarltcdd0008.ams1907.com");
+		args.add("add", "my-tag-name");
+		args.add("value", "my-tag-value");
 		ResponseMessage responseAddTag = service.post(
 				"search/fields/host/tags", args);
 		// TODO: check for errors, and response code 200 etc.
@@ -130,8 +157,8 @@ public class NLDemo1Test extends TestCase {
 		// instantiate Service and connect
 		Args args = new Args();
 		args.add("username", "admin");
-		args.add("password", "sk8free");
-		args.add("host", "demos.splunk.com");
+		args.add("password", "changeme");
+		args.add("host", "localhost");
 		args.add("port", 8089);
 		Service service = Service.connect(args);
 
