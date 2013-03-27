@@ -39,6 +39,20 @@ public class NLDemo1Test extends TestCase {
 		index.submit(eventArgs, "foo=bar");
 	}
 
+	public void testGetLastRunJobFromHistory() throws Exception {
+		// instantiate Service and connect
+		Service service = new Service("localhost", 8089);
+		service.login("admin", "changeme");
+		SavedSearch savedSearch = service.getSavedSearches().get("NLSS1");
+		Job[] jobColl = savedSearch.history();
+		Job job;
+		if (jobColl.length > 0) {
+			job = jobColl[0];
+		} else {
+			job = savedSearch.dispatch();
+		}
+	}
+
 	public void testSavedSearchPermissions() throws IOException,
 			InterruptedException {
 		Service service = new Service("localhost", 8089);
@@ -64,7 +78,7 @@ public class NLDemo1Test extends TestCase {
 		jobArgs.setStatusBuckets(300);
 
 		job = service.search("search index=_internal", jobArgs);
-		
+
 		while (!job.isReady()) {
 			Thread.sleep(500);
 		}
