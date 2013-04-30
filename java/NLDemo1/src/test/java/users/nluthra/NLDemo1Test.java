@@ -11,32 +11,56 @@ import junit.framework.TestCase;
 
 import com.splunk.Args;
 import com.splunk.Event;
-import com.splunk.Index;
 import com.splunk.Job;
 import com.splunk.JobArgs;
 import com.splunk.JobArgs.ExecutionMode;
 import com.splunk.JobArgs.SearchMode;
+import com.splunk.JobResultsArgs;
+import com.splunk.JobResultsArgs.OutputMode;
 import com.splunk.JobResultsPreviewArgs;
 import com.splunk.ResponseMessage;
+import com.splunk.ResultsReaderCsv;
+import com.splunk.ResultsReaderJson;
 import com.splunk.ResultsReaderXml;
 import com.splunk.SavedSearch;
 import com.splunk.Service;
+import com.splunk.ServiceArgs;
 import com.sun.org.apache.xerces.internal.impl.dv.util.Base64;
 
-public class NLDemo1Test extends TestCase {
 
-	public void testNL() throws Exception {
-		// instantiate Service and connect
-		Args args = new Args();
-		args.add("username", "admin");
-		args.add("password", "changeme");
-		args.add("host", "localhost");
-		args.add("port", 8089);
-		Service service = Service.connect(args);
-		Index index = service.getIndexes().get("main");
-		Args eventArgs = new Args();
-		eventArgs.put("source", "foohost");
-		index.submit(eventArgs, "foo=bar");
+public class NLDemo1Test extends TestCase {
+	
+	public void testOneshotWithTimeBoundaries() throws Exception {
+		Service service = getService();
+		Args oneshotSearchArgs = new Args();
+		oneshotSearchArgs.put("earliest_time", "2013-04-10T12:00:00.000-07:00");
+		oneshotSearchArgs.put("latest_time", "2013-04-20T12:00:00.000-07:00");
+		oneshotSearchArgs.put("output_mode",   "csv");
+		String searchQuery = "search index=_internal | head 2";
+		
+		System.out.println("oneshot search results without the CSV parser ...");
+		InputStream results =  service.oneshotSearch(searchQuery, oneshotSearchArgs);
+		BufferedReader br = new BufferedReader(new InputStreamReader(results));
+		String line = null;
+		while ((line = br.readLine()) != null) {
+			if (line.length() == 0) continue;
+			System.out.println(line);
+		}
+
+		System.out.println("oneshot search results with the CSV parser ...");
+		results =  service.oneshotSearch(searchQuery, oneshotSearchArgs);
+		ResultsReaderCsv rr = new ResultsReaderCsv(results);
+		Event event = null;
+		while ((event=rr.getNextEvent()) != null) {
+			System.out.println(event);
+		}
+
+	}
+
+	public void testWriteDataSimple() throws Exception {
+		Service service = getService();
+		service.getReceiver().log("foo1");
+
 	}
 
 	public void testGetLastRunJobFromHistory() throws Exception {
@@ -44,13 +68,7 @@ public class NLDemo1Test extends TestCase {
 		Service service = new Service("localhost", 8089);
 		service.login("admin", "changeme");
 		SavedSearch savedSearch = service.getSavedSearches().get("NLSS1");
-		Job[] jobColl = savedSearch.history();
-		Job job;
-		if (jobColl.length > 0) {
-			job = jobColl[0];
-		} else {
-			job = savedSearch.dispatch();
-		}
+		Job job = savedSearch.dispatch();
 	}
 
 	public void testSavedSearchPermissions() throws IOException,
@@ -108,13 +126,12 @@ public class NLDemo1Test extends TestCase {
 
 		Job job = null;
 		// search query for NL1 is
-		// "index=_internal sourcetype=$args.mysourcetype$"
+		// "index=_internal earliest=$args.mysourcetype$"
 		SavedSearch savedSearch = service.getSavedSearches().get("NL1");
 		Args dispatchArgs = new Args();
-		dispatchArgs.add("dispatch.earliest_time", "-120m@m");
-		dispatchArgs.add("latest", "-10m@m");
-		dispatchArgs.add("span", "5min");
-		dispatchArgs.add("args.mysourcetype", "splunkd");
+		// dispatchArgs.add("dispatch.earliest_time", "-120m@m");
+		// dispatchArgs.add("span", "5min");
+		dispatchArgs.add("args.earliest", "-10m@m");
 		job = savedSearch.dispatch(dispatchArgs);
 
 		while (!job.isDone()) {
@@ -179,27 +196,11 @@ public class NLDemo1Test extends TestCase {
 		service.getSavedSearches().remove("my_saved_search");
 
 		SavedSearch ss = service.getSavedSearches().create("my_saved_search",
-				"index=internal | head 2");
+				"index=_internal | stats count by sourcetype");
 		Job job = ss.dispatch();
-		while (!job.isReady()) {
-			Thread.sleep(1000);
+		while (!job.isDone()) {
+			Thread.sleep(500);
 		}
-
-		// readXML(job);
-		// readBuffered(job);
-	}
-
-	private void readBuffered(Job job) throws IOException {
-		InputStream results = job.getResults();
-
-		BufferedReader br = new BufferedReader(new InputStreamReader(results));
-		String line = null;
-		while ((line = br.readLine()) != null) {
-			System.out.println(line);
-		}
-	}
-
-	private void readXML(Job job) throws IOException {
 		InputStream results = job.getResultsPreview();
 
 		ResultsReaderXml resultsReader = new ResultsReaderXml(results);
@@ -209,5 +210,60 @@ public class NLDemo1Test extends TestCase {
 				System.out.println(key + ":" + event.get(key));
 			}
 		}
+	}
+
+	private void readBuffered(Job job) throws IOException, InterruptedException {
+		while (!job.isDone()) {
+			Thread.sleep(500);
+		}
+		InputStream results = job.getResults(new Args("output_mode", "json"));
+
+		BufferedReader br = new BufferedReader(new InputStreamReader(results));
+		String line = null;
+		while ((line = br.readLine()) != null) {
+			System.out.println(line);
+		}
+	}
+
+	private void readXML(Job job) throws IOException, InterruptedException {
+		while (!job.isDone()) {
+			Thread.sleep(500);
+		}
+
+		InputStream results = job.getResults();
+
+		ResultsReaderXml resultsReader = new ResultsReaderXml(results);
+		Event event = null;
+		while ((event = resultsReader.getNextEvent()) != null) {
+			for (String key : event.keySet()) {
+				System.out.println(key + ":" + event.get(key));
+			}
+		}
+	}
+
+	private void readJSON(Job job) throws IOException, InterruptedException {
+		while (!job.isDone()) {
+			Thread.sleep(500);
+		}
+
+		InputStream results = job.getResults(new Args("output_mode", "json"));
+
+		ResultsReaderJson resultsReader = new ResultsReaderJson(results);
+		Event event = null;
+		while ((event = resultsReader.getNextEvent()) != null) {
+			for (String key : event.keySet()) {
+				System.out.println(key + ":" + event.get(key));
+			}
+		}
+	}
+
+	private Service getService() {
+		ServiceArgs args = new ServiceArgs();
+		args.setUsername("admin");
+		args.setPassword("changeme");
+		// Service service = Service.connect(args);
+		Service service = new Service("localhost", 8089);
+		service.setToken("Basic " + Base64.encode("admin:changeme".getBytes()));
+		return service;
 	}
 }

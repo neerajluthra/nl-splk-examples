@@ -1,16 +1,27 @@
 import splunklib.client as client
-
-HOST = "localhost"
-PORT = 8089
-USERNAME = "admin"
-PASSWORD = "changeme"
-OWNER = "admin"
-APP = "oidemo"
+import splunklib.results as results
+from time import sleep
+import sys
+import json
 
 # Create a Service instance and log in 
-service=client.connect(host="localhost",port=8089,username="admin",password="changeme",autologin=True,app="-",owner="-")
+service=client.connect(host="localhost",port=8089,username="admin",password="changeme")
 
-print len(service.saved_searches)
+ss = service.saved_searches["NLSS1"]
 
-for savedsearch in service.saved_searches:
-    print "  " + savedsearch.name
+history = ss.history()
+
+if len(history) > 0:
+	job = history[0]
+
+while True:
+    job.refresh()
+    if job["isDone"] == "1":
+        sys.stdout.write("\n\nDone!\n\n")
+        break
+    sleep(1)
+
+
+kwargs = {"output_mode": "json"}
+
+print json.load(job.results(**kwargs))

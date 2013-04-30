@@ -2,7 +2,7 @@ require "/Users/nluthra/git/splunk-sdk-ruby/lib/splunk-sdk-ruby.rb"
 #require "splunk-sdk-ruby"
 
 def getService
-	config = { :username => "admin", :password => "changeme", :server => "localhost", :port => "8089" }
+	config = { :username => "admin", :password => "splunker", :server => "localhost", :port => "8089" }
 	service = Splunk::connect(config)
 	service.login
 	service
