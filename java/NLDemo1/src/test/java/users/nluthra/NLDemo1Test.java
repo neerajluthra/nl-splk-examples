@@ -10,13 +10,13 @@ import java.util.Map;
 import junit.framework.TestCase;
 
 import com.splunk.Args;
+import com.splunk.CollectionArgs;
 import com.splunk.Event;
 import com.splunk.Job;
 import com.splunk.JobArgs;
 import com.splunk.JobArgs.ExecutionMode;
 import com.splunk.JobArgs.SearchMode;
-import com.splunk.JobResultsArgs;
-import com.splunk.JobResultsArgs.OutputMode;
+import com.splunk.JobCollection;
 import com.splunk.JobResultsPreviewArgs;
 import com.splunk.ResponseMessage;
 import com.splunk.ResultsReaderCsv;
@@ -27,67 +27,58 @@ import com.splunk.Service;
 import com.splunk.ServiceArgs;
 import com.sun.org.apache.xerces.internal.impl.dv.util.Base64;
 
-
 public class NLDemo1Test extends TestCase {
-	
+
+	public void test() throws Exception {
+		// instantiate Service and connect
+		Service service = getService();
+		CollectionArgs args = new CollectionArgs();
+		args.put("count", "2");
+		JobCollection jobs = service.getJobs(args);
+		System.out.println("Job count:" + jobs.size());
+		Job job = jobs.create("search index=_internal | head 2");
+		while (!job.isDone()) {
+			Thread.sleep(500);
+		}
+		// readXML(job);
+	}
+
 	public void testOneshotWithTimeBoundaries() throws Exception {
 		Service service = getService();
 		Args oneshotSearchArgs = new Args();
 		oneshotSearchArgs.put("earliest_time", "2013-04-10T12:00:00.000-07:00");
-		oneshotSearchArgs.put("latest_time", "2013-04-20T12:00:00.000-07:00");
-		oneshotSearchArgs.put("output_mode",   "csv");
+		oneshotSearchArgs.put("latest_time", "2014-04-20T12:00:00.000-07:00");
+		oneshotSearchArgs.put("output_mode", "csv");
 		String searchQuery = "search index=_internal | head 2";
-		
+
 		System.out.println("oneshot search results without the CSV parser ...");
-		InputStream results =  service.oneshotSearch(searchQuery, oneshotSearchArgs);
-		BufferedReader br = new BufferedReader(new InputStreamReader(results));
-		String line = null;
-		while ((line = br.readLine()) != null) {
-			if (line.length() == 0) continue;
-			System.out.println(line);
-		}
+		InputStream stream = service.oneshotSearch(searchQuery,
+				oneshotSearchArgs);
+		readBuffered(stream);
 
 		System.out.println("oneshot search results with the CSV parser ...");
-		results =  service.oneshotSearch(searchQuery, oneshotSearchArgs);
-		ResultsReaderCsv rr = new ResultsReaderCsv(results);
-		Event event = null;
-		while ((event=rr.getNextEvent()) != null) {
-			System.out.println(event);
-		}
-
+		stream = service.oneshotSearch(searchQuery, oneshotSearchArgs);
+		readCSV(stream);
 	}
 
 	public void testWriteDataSimple() throws Exception {
 		Service service = getService();
 		service.getReceiver().log("foo1");
-
 	}
 
 	public void testGetLastRunJobFromHistory() throws Exception {
-		// instantiate Service and connect
-		Service service = new Service("localhost", 8089);
-		service.login("admin", "changeme");
-		SavedSearch savedSearch = service.getSavedSearches().get("NLSS1");
-		Job job = savedSearch.dispatch();
-	}
-
-	public void testSavedSearchPermissions() throws IOException,
-			InterruptedException {
-		Service service = new Service("localhost", 8089);
-		service.login("admin", "changeme");
-
-		SavedSearch ss = service.getSavedSearches().get("NLSS1");
-		ss.setActionSummaryIndexName("foo");
-		Args args = new Args();
-		args.add("action.summary_index", "1");
-		ss.update(args);
+		Service service = getService();
+		SavedSearch ss = service.getSavedSearches().get("ODBCDemoSavedSearch");
+		if (ss.history().length > 0) {
+			readBuffered(ss.history()[0]);
+		} else {
+			readBuffered(ss.dispatch());
+		}
 	}
 
 	public void testRealtime() throws IOException, InterruptedException {
-		Service service = new Service("localhost", 8089);
-		service.login("admin", "changeme");
+		Service service = getService();
 
-		Job job = null;
 		JobArgs jobArgs = new JobArgs();
 		jobArgs.setExecutionMode(ExecutionMode.NORMAL);
 		jobArgs.setEarliestTime("rt-1m");
@@ -95,7 +86,7 @@ public class NLDemo1Test extends TestCase {
 		jobArgs.setSearchMode(SearchMode.REALTIME);
 		jobArgs.setStatusBuckets(300);
 
-		job = service.search("search index=_internal", jobArgs);
+		Job job = service.search("search index=_internal", jobArgs);
 
 		while (!job.isReady()) {
 			Thread.sleep(500);
@@ -107,22 +98,14 @@ public class NLDemo1Test extends TestCase {
 
 		while (true) {
 			InputStream stream = job.getResultsPreview(resultsArgs);
-			String line = null;
-			BufferedReader br = new BufferedReader(new InputStreamReader(
-					stream, "UTF-8"));
-			while ((line = br.readLine()) != null) {
-				System.out.println(line);
-			}
-			br.close();
-			stream.close();
+			readBuffered(stream);
 			Thread.sleep(500);
 		}
 	}
 
 	public void testSearchWithArguments() throws IOException,
 			InterruptedException {
-		Service service = new Service("localhost", 8089);
-		service.login("admin", "changeme");
+		Service service = getService();
 
 		Job job = null;
 		// search query for NL1 is
@@ -143,29 +126,11 @@ public class NLDemo1Test extends TestCase {
 
 		InputStream stream = job.getResults(outputArgs);
 		System.out.println(job.getResultCount());
-	}
-
-	public void testbasicAuthTest() throws InterruptedException {
-		Service service = new Service("localhost", 8089);
-		String creds = "admin:changeme";
-		String basicAuthHeader = Base64.encode(creds.getBytes());
-		service.setToken("Basic " + basicAuthHeader);
-		System.out.println(service.getSavedSearches().size());
-		Job job = service.getJobs().create(
-				"search index=oidemo | stats count by mdn");
-		Thread.sleep(3000);
-		System.out.println("job created" + job.getSid());
-		if (!job.isReady()) {
-			job.cancel();
-			System.out.println("job cancelled" + job.getSid());
-		} else {
-			System.out.println("job already ready");
-		}
+		readJSON(stream);
 	}
 
 	public void testTag() throws IOException {
-		Service service = new Service("localhost", 8089);
-		service.login("admin", "changeme");
+		Service service = getService();
 		Args args = new Args();
 		args.add("add", "my-tag-name");
 		args.add("value", "my-tag-value");
@@ -184,41 +149,16 @@ public class NLDemo1Test extends TestCase {
 		}
 	}
 
-	public void test() throws Exception {
-		// instantiate Service and connect
-		Args args = new Args();
-		args.add("username", "admin");
-		args.add("password", "changeme");
-		args.add("host", "localhost");
-		args.add("port", 8089);
-		Service service = Service.connect(args);
-
-		service.getSavedSearches().remove("my_saved_search");
-
-		SavedSearch ss = service.getSavedSearches().create("my_saved_search",
-				"index=_internal | stats count by sourcetype");
-		Job job = ss.dispatch();
-		while (!job.isDone()) {
-			Thread.sleep(500);
-		}
-		InputStream results = job.getResultsPreview();
-
-		ResultsReaderXml resultsReader = new ResultsReaderXml(results);
-		Event event = null;
-		while ((event = resultsReader.getNextEvent()) != null) {
-			for (String key : event.keySet()) {
-				System.out.println(key + ":" + event.get(key));
-			}
-		}
-	}
-
 	private void readBuffered(Job job) throws IOException, InterruptedException {
 		while (!job.isDone()) {
 			Thread.sleep(500);
 		}
-		InputStream results = job.getResults(new Args("output_mode", "json"));
+		InputStream stream = job.getResults(new Args("output_mode", "json"));
+		readBuffered(stream);
+	}
 
-		BufferedReader br = new BufferedReader(new InputStreamReader(results));
+	private void readBuffered(InputStream stream) throws IOException {
+		BufferedReader br = new BufferedReader(new InputStreamReader(stream));
 		String line = null;
 		while ((line = br.readLine()) != null) {
 			System.out.println(line);
@@ -229,10 +169,11 @@ public class NLDemo1Test extends TestCase {
 		while (!job.isDone()) {
 			Thread.sleep(500);
 		}
+		readXML(job.getResults());
+	}
 
-		InputStream results = job.getResults();
-
-		ResultsReaderXml resultsReader = new ResultsReaderXml(results);
+	private void readXML(InputStream stream) throws IOException {
+		ResultsReaderXml resultsReader = new ResultsReaderXml(stream);
 		Event event = null;
 		while ((event = resultsReader.getNextEvent()) != null) {
 			for (String key : event.keySet()) {
@@ -241,14 +182,32 @@ public class NLDemo1Test extends TestCase {
 		}
 	}
 
+	private void readCSV(Job job) throws IOException, InterruptedException {
+		while (!job.isDone()) {
+			Thread.sleep(500);
+		}
+		InputStream stream = job.getResults(new Args("output_mode", "json"));
+		readCSV(stream);
+	}
+
+	private void readCSV(InputStream stream) throws IOException {
+		ResultsReaderCsv rr = new ResultsReaderCsv(stream);
+		Event event = null;
+		while ((event = rr.getNextEvent()) != null) {
+			System.out.println(event);
+		}
+	}
+
 	private void readJSON(Job job) throws IOException, InterruptedException {
 		while (!job.isDone()) {
 			Thread.sleep(500);
 		}
+		InputStream stream = job.getResults(new Args("output_mode", "json"));
+		readJSON(stream);
+	}
 
-		InputStream results = job.getResults(new Args("output_mode", "json"));
-
-		ResultsReaderJson resultsReader = new ResultsReaderJson(results);
+	private void readJSON(InputStream stream) throws IOException {
+		ResultsReaderJson resultsReader = new ResultsReaderJson(stream);
 		Event event = null;
 		while ((event = resultsReader.getNextEvent()) != null) {
 			for (String key : event.keySet()) {
