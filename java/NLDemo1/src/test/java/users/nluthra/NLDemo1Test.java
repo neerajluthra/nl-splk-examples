@@ -30,17 +30,6 @@ import com.sun.org.apache.xerces.internal.impl.dv.util.Base64;
 public class NLDemo1Test extends TestCase {
 
 	public void test() throws Exception {
-		// instantiate Service and connect
-		Service service = getService();
-		CollectionArgs args = new CollectionArgs();
-		args.put("count", "2");
-		JobCollection jobs = service.getJobs(args);
-		System.out.println("Job count:" + jobs.size());
-		Job job = jobs.create("search index=_internal | head 2");
-		while (!job.isDone()) {
-			Thread.sleep(500);
-		}
-		// readXML(job);
 	}
 
 	public void testOneshotWithTimeBoundaries() throws Exception {
@@ -50,7 +39,7 @@ public class NLDemo1Test extends TestCase {
 		oneshotSearchArgs.put("latest_time", "2014-04-20T12:00:00.000-07:00");
 		oneshotSearchArgs.put("output_mode", "csv");
 		String searchQuery = "search index=_internal | head 2";
-
+		
 		System.out.println("oneshot search results without the CSV parser ...");
 		InputStream stream = service.oneshotSearch(searchQuery,
 				oneshotSearchArgs);
@@ -68,12 +57,12 @@ public class NLDemo1Test extends TestCase {
 
 	public void testGetLastRunJobFromHistory() throws Exception {
 		Service service = getService();
-		SavedSearch ss = service.getSavedSearches().get("ODBCDemoSavedSearch");
-		if (ss.history().length > 0) {
-			readBuffered(ss.history()[0]);
-		} else {
-			readBuffered(ss.dispatch());
-		}
+	SavedSearch ss = service.getSavedSearches().get("ODBCDemoSavedSearch");
+	if (ss.history().length > 0) {
+		readBuffered(ss.history()[0]);
+	} else {
+		readBuffered(ss.dispatch());
+	}
 	}
 
 	public void testRealtime() throws IOException, InterruptedException {
