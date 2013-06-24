@@ -1,46 +1,72 @@
 #!/usr/bin/php
 
 <?php
-
-require_once '../Splunk.php';
-//require_once 'settings.php';
-
+require_once '/Users/nluthra/git/splunk-sdk-php/Splunk.php';
 ?>
 
 
 <?php
-$ns = Splunk_Namespace::createApp('NL1Test');
 $service = new Splunk_Service(array(
     'host'      => 'localhost',
     'port'      => '8089',
     'username'  => 'admin',
     'password'  => 'changeme',
-    'namespace' => $ns,
 ));
 
 $service->login();
+print_r($service->getToken());
 
-// Get all saved searches
-$savedSearches = $service->getSavedSearches()->items(array(
-  'namespace' => Splunk_Namespace::createUser(NULL, NULL),     // all owners, all apps
-));
+$searchQueryOneshot = 'search index=_internal'; // Return the first 100 events
 
-//foreach ($savedSearches as $savedSearch)
-  //{
-  //  print_r($savedSearch->getName());
- //}
+// Set the search parameters; specify a time range
+$searchParams = array(
+    'count' => 30,
+    'offset' => 100000,
+    'earliest_time' => '2012-06-20T12:00:00.000-07:00', 
+    'latest_time' => '2013-12-02T12:00:00.000-07:00'
+);
 
-//$savedSearch = $service->getSavedSearches()->get('NL1TestSearch1', $ns);
-$savedSearch = $service->getSavedSearches()->get('NL1TestSearch1');
-//print($savedSearch['search']);
+// Run a oneshot search that returns the job's results
+$resultsStream = $service->oneshotSearch($searchQueryOneshot, $searchParams);
+$resultsOneshotSearch = new Splunk_ResultsReader($resultsStream);
 
-$foo = Splunk_Namespace::createApp('foo');
-$job = $savedSearch->dispatch(array('namespace' => 'foo'));
-while (!$job->isDone())
-{
-   usleep(0.5 * 1000000);
-    $job->reload();
-}
-$results = $job->getResults();
-//print_r($results);
+// Use the built-in XML parser to display the job results
+foreach ($resultsOneshotSearch as $result)
+  {
+    if ($result instanceof Splunk_ResultsFieldOrder)
+    {
+      // Process the field order
+      print "FIELDS: " . implode(',', $result->getFieldNames()) . "\r\n";
+    }
+    else if ($result instanceof Splunk_ResultsMessage)
+    {
+      // Process a message
+      print "[{$result->getType()}] {$result->getText()}\r\n";
+    }
+    else if (is_array($result))
+    {
+      // Process a row
+      print "{\r\n";
+      foreach ($result as $key => $valueOrValues)
+        {
+          if (is_array($valueOrValues))
+            {
+              $values = $valueOrValues;
+              $valuesString = implode(',', $values);
+              print "  {$key} => [{$valuesString}]\r\n";
+            }
+          else
+            {
+              $value = $valueOrValues;
+              print "  {$key} => {$value}\r\n";
+            }
+        }
+      print "}\r\n";
+    }
+    else
+    {
+      // Ignore unknown result type
+    }
+  }
+
 ?> 

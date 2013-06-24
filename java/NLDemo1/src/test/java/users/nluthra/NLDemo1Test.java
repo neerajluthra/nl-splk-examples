@@ -32,6 +32,18 @@ public class NLDemo1Test extends TestCase {
 	public void test() throws Exception {
 	}
 
+	public void testOneshot() throws Exception {
+		Service service = getService();
+		Args oneshotSearchArgs = new Args();
+		oneshotSearchArgs.put("output_mode", "csv");
+		String searchQuery = "search index=_internal | head 1000 | top sourcetype";
+		
+		System.out.println("oneshot search results in csv format ...");
+		InputStream stream = service.oneshotSearch(searchQuery,
+				oneshotSearchArgs);
+		readBuffered(stream);
+	}
+
 	public void testOneshotWithTimeBoundaries() throws Exception {
 		Service service = getService();
 		Args oneshotSearchArgs = new Args();
