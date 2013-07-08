@@ -12,6 +12,7 @@
         var service = new splunkjs.Service(http, {
             username: "admin",
             password: "changeme",
+            //sessionKey: "63829ffc2b74cb7712f21c25c26f2d29",
             scheme: "https",
             host: "localhost",
             port: "8089"
@@ -25,6 +26,7 @@
             }
 
          console.log("success connection");
+         console.log(service.sessionKey);
 
          service.serverInfo(function(err, info) {
          console.log("Splunk Version: ", info.properties().version);
